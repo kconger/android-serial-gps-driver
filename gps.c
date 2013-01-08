@@ -49,10 +49,10 @@ static GpsState  _gps_state[1];
 static int    id_in_fixed[12];
 #define  GPS_DEBUG  0
 
-#define  DFR(...)   LOGD(__VA_ARGS__)
+#define  DFR(...)   ALOGD(__VA_ARGS__)
 
 #if GPS_DEBUG
-#  define  D(...)   LOGD(__VA_ARGS__)
+#  define  D(...)   ALOGD(__VA_ARGS__)
 #else
 #  define  D(...)   ((void)0)
 #endif
@@ -842,13 +842,13 @@ gps_state_thread( void*  arg )
         nevents = epoll_wait( epoll_fd, events, 2, -1 );
         if (nevents < 0) {
             if (errno != EINTR)
-                LOGE("epoll_wait() unexpected error: %s", strerror(errno));
+                ALOGE("epoll_wait() unexpected error: %s", strerror(errno));
             continue;
         }
 //      D("gps thread received %d events", nevents);
         for (ne = 0; ne < nevents; ne++) {
             if ((events[ne].events & (EPOLLERR|EPOLLHUP)) != 0) {
-                LOGE("EPOLLERR or EPOLLHUP after epoll_wait() !?");
+                ALOGE("EPOLLERR or EPOLLHUP after epoll_wait() !?");
                 return;
             }
             if ((events[ne].events & EPOLLIN) != 0) {
@@ -891,7 +891,7 @@ gps_state_thread( void*  arg )
                             if (errno == EINTR)
                                 continue;
                             if (errno != EWOULDBLOCK)
-                                LOGE("error while reading from gps daemon socket: %s:", strerror(errno));
+                                ALOGE("error while reading from gps daemon socket: %s:", strerror(errno));
                             break;
                         }
 //                      D("received %d bytes: %.*s", ret, ret, buff);
@@ -900,7 +900,7 @@ gps_state_thread( void*  arg )
                     }
 //                  D("gps fd event end");
                 } else {
-                    LOGE("epoll_wait() returned unkown fd %d ?", fd);
+                    ALOGE("epoll_wait() returned unkown fd %d ?", fd);
                 }
             }
         }
@@ -933,7 +933,7 @@ gps_state_init( GpsState*  state, GpsCallbacks* callbacks )
     }
 
     //if ( snprintf(device, sizeof(device), "/dev/%s", prop) >= (int)sizeof(device) ) {
-    //    LOGE("gps serial device name too long: '%s'", prop);
+    //    ALOGE("gps serial device name too long: '%s'", prop);
     //    return;
     //}
     snprintf(device, sizeof(device), "/dev/%s",prop);
@@ -942,7 +942,7 @@ gps_state_init( GpsState*  state, GpsCallbacks* callbacks )
     } while (state->fd < 0 && errno == EINTR);
 
     if (state->fd < 0) {
-        LOGE("could not open gps serial device %s: %s", device, strerror(errno) );
+        ALOGE("could not open gps serial device %s: %s", device, strerror(errno) );
         return;
     }
 
@@ -963,14 +963,14 @@ gps_state_init( GpsState*  state, GpsCallbacks* callbacks )
     }
 
     if ( socketpair( AF_LOCAL, SOCK_STREAM, 0, state->control ) < 0 ) {
-        LOGE("could not create thread control socket pair: %s", strerror(errno));
+        ALOGE("could not create thread control socket pair: %s", strerror(errno));
         goto Fail;
     }
 
     state->thread = callbacks->create_thread_cb( "gps_state_thread", gps_state_thread, state );
 
     if ( !state->thread ) {
-        LOGE("could not create gps thread: %s", strerror(errno));
+        ALOGE("could not create gps thread: %s", strerror(errno));
         goto Fail;
     }
 
@@ -1132,7 +1132,7 @@ static void gps_dev_power(int state)
     int ret;
 #if 0
     if (property_get("gps.power_on",prop,GPS_POWER_IF) == 0) {
-        LOGE("no gps power interface name");
+        ALOGE("no gps power interface name");
         return;
     }
 
@@ -1141,7 +1141,7 @@ static void gps_dev_power(int state)
     } while (fd < 0 && errno == EINTR);
 
     if (fd < 0) {
-        LOGE("could not open gps power interfcae: %s", prop );
+        ALOGE("could not open gps power interfcae: %s", prop );
         return;
     }
 
@@ -1303,7 +1303,7 @@ static struct hw_module_methods_t gps_module_methods = {
     .open = open_gps
 };
 
-const struct hw_module_t HAL_MODULE_INFO_SYM = {
+struct hw_module_t HAL_MODULE_INFO_SYM = {
     .tag = HARDWARE_MODULE_TAG,
     .version_major = 1,
     .version_minor = 0,
