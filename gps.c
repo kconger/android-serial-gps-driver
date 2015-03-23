@@ -60,7 +60,7 @@ static int    id_in_fixed[12];
 #define GPS_DEV_SLOW_UPDATE_RATE (10)
 #define GPS_DEV_HIGH_UPDATE_RATE (1)
 
-#define GPS_DEV_LOW_BAUD  (B9600)
+#define GPS_DEV_LOW_BAUD  (B4800)
 #define GPS_DEV_HIGH_BAUD (B115200)
   static void gps_dev_init(int fd);
   static void gps_dev_deinit(int fd);
@@ -966,7 +966,10 @@ gps_state_init( GpsState*  state, GpsCallbacks* callbacks )
         ios.c_iflag |= (IGNCR | IXOFF);  /* Ignore \r & XON/XOFF on input */
 	// set baud rate and other flags
         property_get("ro.kernel.android.gpsttybaud",baud,"9600");
-        if (strcmp(baud, "9600") == 0) {
+	if (strcmp(baud, "4800") == 0) {
+            ALOGE("setting gps baud rate to 4800");
+            ios.c_cflag = B4800 | CRTSCTS | CS8 | CLOCAL | CREAD;
+        } else if (strcmp(baud, "9600") == 0) {
             ALOGE("setting gps baud rate to 9600");
             ios.c_cflag = B9600 | CRTSCTS | CS8 | CLOCAL | CREAD;
         } else if (strcmp(baud, "19200") == 0) {
