@@ -40,14 +40,14 @@ typedef struct {
     int                     init;
     int                     fd;
     GpsCallbacks            *callbacks;
-    GpsStatus status;
+    GpsStatus 		    status;
     pthread_t               thread;
     int                     control[2];
 } GpsState;
 
 static GpsState  _gps_state[1];
 static int    id_in_fixed[12];
-#define  GPS_DEBUG  0
+#define  GPS_DEBUG  1
 
 #define  DFR(...)   ALOGD(__VA_ARGS__)
 
@@ -62,10 +62,11 @@ static int    id_in_fixed[12];
 
 #define GPS_DEV_LOW_BAUD  (B4800)
 #define GPS_DEV_HIGH_BAUD (B115200)
-  static void gps_dev_init(int fd);
-  static void gps_dev_deinit(int fd);
-  static void gps_dev_start(int fd);
-  static void gps_dev_stop(int fd);
+
+static void gps_dev_init(int fd);
+static void gps_dev_deinit(int fd);
+static void gps_dev_start(int fd);
+static void gps_dev_stop(int fd);
 
 /*****************************************************************/
 /*****************************************************************/
@@ -80,7 +81,7 @@ typedef struct {
     const char*  end;
 } Token;
 
-#define  MAX_NMEA_TOKENS  16
+#define  MAX_NMEA_TOKENS  32
 
 typedef struct {
     int     count;
@@ -116,13 +117,11 @@ nmea_tokenizer_init( NmeaTokenizer*  t, const char*  p, const char*  end )
         if (q == NULL)
             q = end;
 
-        if (q > p) {
             if (count < MAX_NMEA_TOKENS) {
                 t->tokens[count].p   = p;
                 t->tokens[count].end = q;
                 count += 1;
             }
-        }
         if (q < end)
             q += 1;
 
@@ -475,9 +474,13 @@ nmea_reader_update_svs( NmeaReader*  r, int inview, int num, int i, Token prn, T
         r->sv_status.sv_list[i].elevation=str2int(elevation.p,elevation.end);
         r->sv_status.sv_list[i].azimuth=str2int(azimuth.p,azimuth.end);
         r->sv_status.sv_list[i].snr=str2int(snr.p,snr.end);
-        for (o=0;o<12;o++)
-            if (id_in_fixed[o]==str2int(prn.p,prn.end))
-                r->sv_status.used_in_fix_mask |= 1<i ;
+        for (o=0;o<12;o++){
+            if (id_in_fixed[o]==str2int(prn.p,prn.end)){
+		int prni = str2int(prn.p, prn.end);
+		r->sv_status.used_in_fix_mask |= (1ul << (prni-1));
+		D("sv_status.used_in_fix_mask: '%i'", r->sv_status.used_in_fix_mask);
+	    }
+	}
     }
     return 0;
 }
@@ -564,13 +567,31 @@ nmea_reader_parse( NmeaReader*  r )
         Token tok_hdop = nmea_tokenizer_get(tzer,16);
         Token tok_vdop = nmea_tokenizer_get(tzer,17);
 
+	nmea_reader_update_accuracy(r, tok_hdop);
+	
         int i;
         for ( i=0; i<12; i++ ) {
             Token tok_id  = nmea_tokenizer_get(tzer,3+i);
-            if ( tok_id.end > tok_id.p )
-                id_in_fixed[i]=str2int(tok_id.end, tok_id.p);
+            if ( tok_id.end > tok_id.p ){
+                id_in_fixed[i]=str2int(tok_id.p,tok_id.end);
+		D("id='%i' satellite='%i'",i, id_in_fixed[i]);
+		D("Satellite used '%.*s'", tok_id.end-tok_id.p, tok_id.p);
+	    }
         }
     } else if ( !memcmp(tok.p, "GSV", 3) ) {
+	/*
+        1    = Total number of messages of this type in this cycle
+        2    = Message number
+        3    = Total number of SVs in view
+        4    = SV PRN number
+        5    = Elevation in degrees, 90 maximum
+        6    = Azimuth, degrees from true north, 000 to 359
+        7    = SNR, 00-99 dB (null when not tracking)
+        8-11 = Information about second SV, same as field 4-7
+        12-15= Information about third SV, same as field 4-7
+        16-19= Information about fourth SV, same as field 4-7
+        */
+
         //Satellites are handled by RPC-side code.
         Token tok_num_messages   = nmea_tokenizer_get(tzer,1);
         Token tok_msg_number     = nmea_tokenizer_get(tzer,2);
@@ -595,8 +616,10 @@ nmea_reader_parse( NmeaReader*  r )
         int msg_number = str2int(tok_msg_number.p,tok_msg_number.end);
         int svs_inview = str2int(tok_svs_inview.p,tok_svs_inview.end);
         D("GSV %d %d %d", num_messages, msg_number, svs_inview );
-        if (msg_number==1)
-            r->sv_status.used_in_fix_mask=0;
+        if (msg_number==1){
+	    r->sv_status.used_in_fix_mask = 0ul;
+	}
+
         nmea_reader_update_svs( r, svs_inview, msg_number, 0, tok_sv1_prn_num, tok_sv1_elevation, tok_sv1_azimuth, tok_sv1_snr );
         nmea_reader_update_svs( r, svs_inview, msg_number, 1, tok_sv2_prn_num, tok_sv2_elevation, tok_sv2_azimuth, tok_sv2_snr );
         nmea_reader_update_svs( r, svs_inview, msg_number, 2, tok_sv3_prn_num, tok_sv3_elevation, tok_sv3_azimuth, tok_sv3_snr );
@@ -605,31 +628,7 @@ nmea_reader_parse( NmeaReader*  r )
 
         if (num_messages==msg_number)
             update_gps_svstatus(&r->sv_status);
-          /*
-          1    = Total number of messages of this type in this cycle
-          2    = Message number
-          3    = Total number of SVs in view
-          4    = SV PRN number
-          5    = Elevation in degrees, 90 maximum
-          6    = Azimuth, degrees from true north, 000 to 359
-          7    = SNR, 00-99 dB (null when not tracking)
-          8-11 = Information about second SV, same as field 4-7
-          12-15= Information about third SV, same as field 4-7
-          16-19= Information about fourth SV, same as field 4-7
-          */
-/*
-          int i;
-          _gps_state.sv_status.num_svs=ntohl(data[82]) & 0x1F;
-          for(i=0;i<ret.num_svs;++i) {
-              _gps_state.sv_status.sv_list[i].prn=ntohl(data[83+3*i]);
-              _gps_state.sv_status.sv_list[i].elevation=ntohl(data[83+3*i+1]);
-              _gps_state.sv_status.sv_list[i].azimuth=ntohl(data[83+3*i+2])/100;
-              _gps_state.sv_status.sv_list[i].snr=ntohl(data[83+3*i+2])%100;
-          }
-          _gps_state.sv_status.used_in_fix_mask=ntohl(data[77]);
-          update_gps_svstatus(&_gps_state.
 
-*/
     } else if ( !memcmp(tok.p, "RMC", 3) ) {
         Token  tok_time          = nmea_tokenizer_get(tzer,1);
         Token  tok_fixStatus     = nmea_tokenizer_get(tzer,2);
@@ -1332,6 +1331,6 @@ struct hw_module_t HAL_MODULE_INFO_SYM = {
     .version_minor = 0,
     .id = GPS_HARDWARE_MODULE_ID,
     .name = "Serial GPS Module",
-    .author = "The Android-x86 Open Source Project",
+    .author = "Keith Conger",
     .methods = &gps_module_methods,
 };
