@@ -1,0 +1,11 @@
+Android Serial GPS Driver
+
+To set serial port, add a property "ro.kernel.android.gps" and set it equal to your GPS device file.
+ie. ro.kernel.android.gps=ttyO1
+
+Default baud rate is 9600, to adjust add a property "ro.kernel.android.gpsttybaud" and set it equal to the needed rate. (4800-115200)
+ie. ro.kernel.android.gpsttybaud=9600
+
+Notes:
+
+If using a USB device make sure you have the necessary kernel modules loaded or built in to the kernel.
