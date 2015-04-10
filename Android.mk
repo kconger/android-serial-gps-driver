@@ -11,10 +11,6 @@ LOCAL_MODULE_PATH := $(TARGET_OUT_SHARED_LIBRARIES)/hw
 LOCAL_SHARED_LIBRARIES := liblog libcutils
 LOCAL_MODULE := gps.default
 LOCAL_MODULE_TAGS := optional
-ifeq ($(strip $(BOARD_GPS_HARDWARE)),huawei)
-LOCAL_SRC_FILES := gps_huawei.c
-else
 LOCAL_SRC_FILES := gps.c
-endif
 include $(BUILD_SHARED_LIBRARY)
 endif
