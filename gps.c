@@ -47,7 +47,7 @@ typedef struct {
 
 static GpsState  _gps_state[1];
 static int    id_in_fixed[12];
-#define  GPS_DEBUG  1
+//#define  GPS_DEBUG  1
 
 #define  DFR(...)   ALOGD(__VA_ARGS__)
 
