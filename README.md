@@ -8,6 +8,8 @@ ie. ro.kernel.android.gps=ttyO1
 Default baud rate is 9600, to adjust add a property "ro.kernel.android.gpsttybaud" and set it equal to the needed rate. (4800-115200)
 ie. ro.kernel.android.gpsttybaud=9600
 
+To add power management for your target product, `cp power-stubs.c power-$(TARGET_PRODUCT).c` and fill in the stubs.
+
 Notes:
 * If using a USB device make sure you have the necessary kernel modules loaded or built in to the kernel.
 * Make sure the permissions on your device file are correct
