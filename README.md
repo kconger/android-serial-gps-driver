@@ -8,6 +8,8 @@ ie. ro.kernel.android.gps=ttyO1
 Default baud rate is 9600, to adjust add a property "ro.kernel.android.gpsttybaud" and set it equal to the needed rate. (4800-115200)
 ie. ro.kernel.android.gpsttybaud=9600
 
+Default GPS fix rate (interval between position updates) depends on the used device but it is often 1 second.  This rate is possible to modify by property "ro.kernel.android.gps.max_rate" if your GPS device is able to process UBX protocol. Acceptable property value must be from one of two ranges - from 1 to 65 seconds or from 250 to 65000 milliseconds.
+
 To add power management for your target product, `cp power-stubs.c power-$(TARGET_PRODUCT).c` and fill in the stubs.
 
 Notes:
